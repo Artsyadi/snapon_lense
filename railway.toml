@@ -1,9 +1,9 @@
 [build]
   builder = "NIXPACKS"
-  buildCommand = "cd shelvesense-server && npm install && npm run build"
+  buildCommand = "npm install && npm run build"
 
 [deploy]
-  startCommand = "cd shelvesense-server && npm start"
+  startCommand = "npm start"
   healthcheckPath = "/api/health"
   healthcheckTimeout = 30
   restartPolicyType = "ON_FAILURE"
