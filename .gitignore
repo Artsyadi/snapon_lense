@@ -1,0 +1,20 @@
+# Dependencies & build
+**/node_modules/
+**/dist/
+
+# Secrets (never commit)
+.env
+**/.env
+!**/.env.example
+
+# Server runtime / local DB
+shelvesense-server/data/
+*.log
+
+# Lens Studio local cache (regenerated)
+Cache/
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+*.esproj*.lock
