@@ -38,26 +38,56 @@ function extractTextBlocks(content: Array<{ type: string; text?: string }>): str
   );
 }
 
-function toAnthropicContent(parts: ChatContentPart[]): Array<Record<string, unknown>> {
-  return parts.map((part) => {
+type AnthropicImageMediaType = 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp';
+
+function normalizeAnthropicImageMime(value: string): AnthropicImageMediaType | null {
+  switch (value.toLowerCase()) {
+    case 'image/jpg':
+    case 'image/jpeg':
+      return 'image/jpeg';
+    case 'image/png':
+      return 'image/png';
+    case 'image/gif':
+      return 'image/gif';
+    case 'image/webp':
+      return 'image/webp';
+    default:
+      return null;
+  }
+}
+
+function toAnthropicContent(parts: ChatContentPart[]): Anthropic.Messages.ContentBlockParam[] {
+  const content: Anthropic.Messages.ContentBlockParam[] = [];
+
+  for (const part of parts) {
     if (part.type === 'text') {
-      return { type: 'text', text: part.text };
+      content.push({ type: 'text', text: part.text });
+      continue;
     }
 
     const match = part.image_url.url.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.*)$/);
     if (!match) {
-      return { type: 'text', text: '[unsupported image payload]' };
+      content.push({ type: 'text', text: '[unsupported image payload]' });
+      continue;
     }
 
-    return {
+    const mediaType = normalizeAnthropicImageMime(match[1]);
+    if (!mediaType) {
+      content.push({ type: 'text', text: '[unsupported image mime type]' });
+      continue;
+    }
+
+    content.push({
       type: 'image',
       source: {
         type: 'base64',
-        media_type: match[1],
+        media_type: mediaType,
         data: match[2],
       },
-    };
-  });
+    });
+  }
+
+  return content;
 }
 
 let anthropicClient: Anthropic | null = null;
