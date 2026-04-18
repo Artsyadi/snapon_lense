@@ -23,8 +23,27 @@ profileRouter.get('/', (req, res) => {
 profileRouter.post('/parse', validateBody(profileParseBodySchema), async (req, res, next) => {
   try {
     const body = validated<z.infer<typeof profileParseBodySchema>>(req);
-    const profile = await parseLabReport(shelfSenseAi, body.rawText);
+    const rawText = body.rawText;
+    if (!rawText || rawText.trim().length === 0) {
+      const defaultProfile = {
+        cholesterol: 'unknown',
+        bloodSugar: 'unknown',
+        allergies: [],
+        deficiencies: [],
+        sodiumSensitivity: 'normal',
+        sugarSensitivity: 'normal',
+        dietaryConstraints: [],
+        notes: 'no lab text provided',
+      };
+      setSessionProfile(req.shelfSenseSessionId, defaultProfile);
+      req.shelfSenseSession.profile = defaultProfile;
+      res.json({ profile: defaultProfile, source: 'default' });
+      return;
+    }
+
+    const profile = await parseLabReport(shelfSenseAi, rawText);
     setSessionProfile(req.shelfSenseSessionId, profile);
+    req.shelfSenseSession.profile = profile;
     res.json({ profile });
   } catch (e) {
     next(e);

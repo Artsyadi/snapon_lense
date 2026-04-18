@@ -12,14 +12,6 @@ function cap<T>(arr: T[] | undefined, n: number): T[] {
   return (arr ?? []).slice(0, n);
 }
 
-export class UnreadableImageError extends Error {
-  readonly code = 'UNREADABLE_LABEL' as const;
-  constructor(detail: string) {
-    super(detail);
-    this.name = 'UnreadableImageError';
-  }
-}
-
 export async function analyzeProductLabel(params: {
   ai: AiProvider;
   imageBuffer: Buffer;
@@ -40,7 +32,7 @@ export async function analyzeProductLabel(params: {
   const jsonText = await withExponentialBackoff(
     () =>
       params.ai.completeJsonVision({
-        model: config.openai.visionModel,
+        model: config.anthropic.model,
         system: SYSTEM,
         userParts: [
           { type: 'text', text: userText },
@@ -73,7 +65,26 @@ export async function analyzeProductLabel(params: {
 
   const m = model.data;
   if (m._failure === 'UNREADABLE_LABEL' || m._failure === 'UNCERTAIN_PARSE') {
-    throw new UnreadableImageError(m._failure_detail ?? 'Label not readable');
+    return {
+      verdict: 'Caution',
+      reason: m._failure_detail ?? 'Label image too small or unreadable — scan closer to the product.',
+      ingredients_flags: [],
+      macro_breakdown: {
+        calories: 'unknown',
+        protein: 'unknown',
+        carbs: 'unknown',
+        fat: 'unknown',
+        sugar: 'unknown',
+        sodium: 'unknown',
+      },
+      health_risks: [],
+      better_alternatives: [],
+      cart_impact: {
+        summary: 'Unable to read label — using conservative caution.',
+        running_score: 'n/a',
+      },
+      meal_plan_hint: '',
+    };
   }
 
   const coerceVerdict = (v: unknown): 'Safe' | 'Caution' | 'Avoid' =>

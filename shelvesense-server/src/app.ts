@@ -50,6 +50,10 @@ export function createApp(): express.Express {
     res.json({ ok: true, service: 'shelvesense-backend' });
   });
 
+  app.get('/api/health', (_req, res) => {
+    res.json({ ok: true, service: 'shelvesense-backend' });
+  });
+
   app.get('/', (_req, res) => {
     const port = config.port;
     res.type('html').send(`<!DOCTYPE html>
@@ -65,6 +69,7 @@ export function createApp(): express.Express {
   <ul>
     <li><a href="/demo.html"><strong>Try speech + text</strong> (local demo)</a> — uses <code>/api/speech</code></li>
     <li><a href="/health"><code>/health</code></a> — quick JSON check</li>
+    <li><a href="/api/health"><code>/api/health</code></a> — deploy healthcheck</li>
     <li><a href="/api/profile"><code>/api/profile</code></a> — GET session profile (JSON)</li>
   </ul>
   <p>API routes live under <code>/api/...</code>. See <code>shelvesense-server/README.md</code> for curl examples.</p>

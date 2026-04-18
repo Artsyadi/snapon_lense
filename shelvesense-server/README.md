@@ -15,7 +15,7 @@ If a legacy **`server/`** folder still appears from an older checkout, close any
 ## Prerequisites
 
 - Node.js 20+
-- **Optional** `OPENAI_API_KEY` — set `AI_ENGINE=mock` to run **offline** (OCR + fixture-aware heuristics for label scans). `AI_ENGINE=auto` uses OpenAI when a key is present, else mock.
+- **Optional** `ANTHROPIC_API_KEY` — set `AI_ENGINE=mock` to run **offline** (OCR + fixture-aware heuristics for label scans). `AI_ENGINE=claude` uses Anthropic Claude when a key is present.
 - **SQLite** (default) stores session profile + cart under `./data/` — disable with `SQLITE_ENABLED=false` for RAM-only.
 - **OCR** (`OCR_ENABLED=true`, default) is required for mock-mode label fixtures under `../samples/`.
 
@@ -95,18 +95,32 @@ npm start
 
 Default port: **8787** (`PORT` env).
 
+## Railway deployment (no ngrok)
+
+This repo includes root-level `railway.toml` for a permanent public HTTPS deployment.
+
+1. Push repo to GitHub.
+2. In Railway: **New Project → Deploy from GitHub**.
+3. Add variable `ANTHROPIC_API_KEY` in Railway variables.
+4. Use your generated URL in Lens Studio `apiBaseUrl` as `https://<project>.up.railway.app/api`.
+
+Healthcheck endpoint for Railway is `GET /api/health`.
+
 ## Try voice in the browser (local)
 
 With the server running, open **`http://localhost:8787/demo.html`**.  
 Enter a short line, click **Generate & play audio** — it calls **`POST /api/speech`** (same contract as the Spectacles lens) and plays the MP3 while showing the echoed text.
 
-### Speech without an OpenAI key
+### Speech with Edge TTS (default)
 
-Set **`TTS_ENGINE=auto`** (default) or **`TTS_ENGINE=edge`**. When there is **no** `OPENAI_API_KEY`, `/api/speech` tries **Edge TTS** (`edge-tts`). **Some networks block it (403)** — the API still returns **200** with `fallback: "browser_tts_hint"` and an empty `audioBase64`; the demo page then uses **Web Speech**.
+Set **`TTS_ENGINE=edge`** (default) or **`TTS_ENGINE=off`**.
 
-With an OpenAI key, `TTS_ENGINE=auto` prefers **OpenAI TTS** unless you force `edge`.
+- `edge`: `/api/speech` synthesizes with **Edge TTS** (`edge-tts`) and returns MP3 bytes.
+- `off`: `/api/speech` skips synthesis and returns `fallback: "browser_tts_hint"` with empty `audioBase64`.
 
-**Note:** `edge-tts` is unofficial vs Microsoft’s product terms; for production, budget a supported TTS provider or OpenAI.
+Some networks block `edge-tts` (for example 403). In that case the API still returns **200** with `fallback: "browser_tts_hint"`; the demo page then uses **Web Speech**.
+
+**Note:** `edge-tts` is unofficial vs Microsoft’s product terms; for production, budget a supported TTS provider.
 
 ## Session model
 
@@ -181,7 +195,7 @@ Set `CORS_ORIGINS=https://your-tunnel,...` in production. Development defaults t
 
 ## Security
 
-- Never ship `OPENAI_API_KEY` in the lens.
+- Never ship `ANTHROPIC_API_KEY` in the lens.
 - Register your HTTPS gateway domain with Snap Remote Service configuration so `InternetModule.fetch` can reach this API from Spectacles.
 
 ## Tunables (optional env)

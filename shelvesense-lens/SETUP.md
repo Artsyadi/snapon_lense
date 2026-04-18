@@ -43,6 +43,7 @@ SIK is what makes **pinch** work. Without it nothing is interactive.
 The scripts live at **`Assets/ShelfSense/Scripts/`** and are committed to the repo, so you do **not** need to drag anything in:
 
 ```
+Assets/ShelfSense/Scripts/ShelfSenseQuickStart.ts ← one-input bootstrap (recommended first)
 Assets/ShelfSense/Scripts/ShelfSenseAgent.ts   ← main component
 Assets/ShelfSense/Scripts/ShelfSenseHello.ts   ← zero-input sanity script (Step 0)
 Assets/ShelfSense/Scripts/types.ts
@@ -72,7 +73,7 @@ Without **Internet** or **Camera** the lens will be terminated the first time it
 Spectacles can only reach explicitly allow-listed domains.
 
 1. **Project Settings → Remote Service / Internet Access**.
-2. Add the HTTPS origin of your deployed ShelfSense gateway, e.g. `https://shelfsense.example.com` or your ngrok/cloud tunnel `https://abc123.ngrok.app`.
+2. Add the HTTPS origin of your deployed ShelfSense API, e.g. `https://your-project.up.railway.app`.
 3. The URL you set later in `apiBaseUrl` must start with **exactly** this origin (path `/api` is fine).
 
 > Localhost is **not** reachable from Spectacles. Use a public HTTPS URL.
@@ -100,15 +101,17 @@ ShelfSense (SceneObject)
 
 ## 7. Add the ScriptComponent and wire inputs
 
-1. Select `ShelfSenseAgent` SceneObject → **Add Component → Script** → drag `ShelfSenseAgent.ts`.
-2. In the Inspector, fill **every** field — **none can be empty** or the lens will be killed on first frame:
+1. Select `ShelfSenseAgent` SceneObject → **Add Component → Script** → drag `ShelfSenseQuickStart.ts`.
+2. Set only `apiBaseUrl` first and verify Logger prints `[QuickStart] ready - pinch to scan`.
+3. After that baseline check, switch the ScriptComponent to `ShelfSenseAgent.ts`.
+4. In the Inspector, fill **every** `ShelfSenseAgent` field — **none can be empty** or the lens will be killed on first frame:
 
 | Input              | What to drag in                                                                 |
 |--------------------|----------------------------------------------------------------------------------|
 | `cameraModule`     | **Asset Browser → + → Camera Module** (create if missing), then drag the asset. |
 | `remoteService`    | **Asset Browser → + → Internet Module**, drag the asset.                        |
 | `remoteMedia`      | **Asset Browser → + → Remote Media Module**, drag the asset.                    |
-| `apiBaseUrl`       | Your deployed API root, e.g. `https://abc123.ngrok.app/api`.                    |
+| `apiBaseUrl`       | Your deployed API root, e.g. `https://your-project.up.railway.app/api`.         |
 | `pinchInteractor`  | The `InteractionComponent` on `PinchInteractor`.                                |
 | `headlineText`     | `HeadlineText` → **Text** component.                                            |
 | `detailsText`      | `DetailsText` → **Text** component.                                             |

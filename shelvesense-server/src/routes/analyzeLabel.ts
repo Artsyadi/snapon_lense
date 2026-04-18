@@ -12,10 +12,21 @@ const upload = multer({
 });
 
 const multipartMetaSchema = z.object({
-  healthProfile: z.string().min(1),
+  healthProfile: z.string().min(1).optional(),
   productName: z.string().optional(),
   cartContext: z.string().optional(),
 });
+
+const permissiveDefaultProfile: z.infer<typeof healthProfileSchema> = {
+  cholesterol: 'normal',
+  bloodSugar: 'normal',
+  allergies: [],
+  deficiencies: [],
+  sodiumSensitivity: 'normal',
+  sugarSensitivity: 'normal',
+  dietaryConstraints: [],
+  notes: 'no profile provided — using permissive defaults',
+};
 
 export const analyzeLabelRouter = Router();
 
@@ -40,7 +51,7 @@ analyzeLabelRouter.post(
     try {
       let imageBuffer: Buffer;
       let imageMimeType: string;
-      let profile: z.infer<typeof healthProfileSchema>;
+      let profile: z.infer<typeof healthProfileSchema> | undefined;
       let productName: string | undefined;
       let cartContext: string | undefined;
 
@@ -52,21 +63,23 @@ analyzeLabelRouter.post(
           });
           return;
         }
-        let hp: unknown;
-        try {
-          hp = JSON.parse(meta.data.healthProfile) as unknown;
-        } catch {
-          res.status(400).json({ error: { code: 'INVALID_JSON', message: 'healthProfile must be JSON string' } });
-          return;
+        if (meta.data.healthProfile) {
+          let hp: unknown;
+          try {
+            hp = JSON.parse(meta.data.healthProfile) as unknown;
+          } catch {
+            res.status(400).json({ error: { code: 'INVALID_JSON', message: 'healthProfile must be JSON string' } });
+            return;
+          }
+          const parsedProfile = healthProfileSchema.safeParse(hp);
+          if (!parsedProfile.success) {
+            res.status(400).json({
+              error: { code: 'VALIDATION_ERROR', message: 'healthProfile invalid', details: parsedProfile.error.flatten() },
+            });
+            return;
+          }
+          profile = parsedProfile.data;
         }
-        const parsedProfile = healthProfileSchema.safeParse(hp);
-        if (!parsedProfile.success) {
-          res.status(400).json({
-            error: { code: 'VALIDATION_ERROR', message: 'healthProfile invalid', details: parsedProfile.error.flatten() },
-          });
-          return;
-        }
-        profile = parsedProfile.data;
         productName = meta.data.productName;
         if (meta.data.cartContext) {
           try {
@@ -93,11 +106,16 @@ analyzeLabelRouter.post(
         cartContext = parsed.data.cartContext?.trendSummary;
       }
 
+      const resolvedProfile =
+        profile ??
+        req.shelfSenseSession?.profile ??
+        permissiveDefaultProfile;
+
       const result = await analyzeProductLabel({
         ai: shelfSenseAi,
         imageBuffer,
         imageMimeType,
-        profile,
+        profile: resolvedProfile,
         productName,
         cartContext,
       });

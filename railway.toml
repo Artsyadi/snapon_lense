@@ -1,0 +1,19 @@
+[build]
+  builder = "NIXPACKS"
+  buildCommand = "cd shelvesense-server && npm install && npm run build"
+
+[deploy]
+  startCommand = "cd shelvesense-server && npm start"
+  healthcheckPath = "/api/health"
+  healthcheckTimeout = 30
+  restartPolicyType = "ON_FAILURE"
+  restartPolicyMaxRetries = 3
+
+[environments.production.variables]
+  PORT = "8787"
+  NODE_ENV = "production"
+  AI_ENGINE = "claude"
+  OCR_ENABLED = "true"
+  OCR_PREPROCESS = "true"
+  TTS_ENGINE = "edge"
+  SQLITE_ENABLED = "true"

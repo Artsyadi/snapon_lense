@@ -9,40 +9,29 @@ function readNumber(name: string, fallback: number): number {
 }
 
 const ttsEngineRaw = (process.env.TTS_ENGINE ?? 'auto').toLowerCase();
-const ttsEngine: 'auto' | 'openai' | 'edge' =
-  ttsEngineRaw === 'openai' || ttsEngineRaw === 'edge' || ttsEngineRaw === 'auto' ? ttsEngineRaw : 'auto';
+const ttsEngine: 'edge' | 'off' = ttsEngineRaw === 'off' ? 'off' : 'edge';
 
-const aiEngineRaw = (process.env.AI_ENGINE ?? 'auto').toLowerCase();
-const aiEngine: 'auto' | 'openai' | 'mock' =
-  aiEngineRaw === 'openai' || aiEngineRaw === 'mock' || aiEngineRaw === 'auto' ? aiEngineRaw : 'auto';
+const aiEngineRaw = (process.env.AI_ENGINE ?? 'claude').toLowerCase();
+const aiEngine: 'claude' | 'mock' = aiEngineRaw === 'mock' ? 'mock' : 'claude';
 
 export const config = {
   port: readNumber('PORT', 8787),
   nodeEnv: process.env.NODE_ENV ?? 'development',
   corsOrigins: process.env.CORS_ORIGINS?.split(',').map((s) => s.trim()).filter(Boolean) ?? null,
 
-  openai: {
-    apiKey: process.env.OPENAI_API_KEY ?? '',
-    visionModel: process.env.OPENAI_VISION_MODEL ?? 'gpt-4o',
-    textModel: process.env.OPENAI_TEXT_MODEL ?? 'gpt-4o-mini',
-    ttsModel: process.env.OPENAI_TTS_MODEL ?? 'tts-1',
-    ttsVoice: process.env.OPENAI_TTS_VOICE ?? 'alloy',
+  anthropic: {
+    apiKey: process.env.ANTHROPIC_API_KEY ?? '',
+    model: process.env.ANTHROPIC_MODEL ?? 'claude-sonnet-4-20250514',
   },
 
-  /**
-   * Speech synthesis for `/api/speech`.
-   * - `auto`: OpenAI TTS if OPENAI_API_KEY is set, otherwise free Edge TTS (edge-tts package).
-   * - `openai`: require API key.
-   * - `edge`: always use Edge TTS (no OpenAI key needed for speech).
-   */
+  /** Speech synthesis for `/api/speech` (`edge` default, `off` for text-only fallback). */
   ttsEngine,
   ttsEdgeVoice: process.env.TTS_EDGE_VOICE ?? 'en-US-AriaNeural',
 
   /**
    * Multimodal AI provider selection.
-   * - `auto`: OpenAI when OPENAI_API_KEY is set, else built-in MockAiProvider (offline heuristics).
-   * - `openai`: require API key.
-   * - `mock`: always offline heuristics (CI / beginner laptops).
+   * - `claude`: Anthropic Claude API.
+   * - `mock`: deterministic offline heuristics (CI / beginner laptops).
    */
   aiEngine,
 
@@ -68,17 +57,3 @@ export const config = {
     maxImageBytes: readNumber('SHELFSENSE_MAX_IMAGE_BYTES', 12 * 1024 * 1024),
   },
 };
-
-export function useOpenAiForServerTts(): boolean {
-  if (config.ttsEngine === 'openai') return true;
-  if (config.ttsEngine === 'edge') return false;
-  return Boolean(config.openai.apiKey);
-}
-
-export function assertOpenAiConfigured(): void {
-  if (!config.openai.apiKey) {
-    const err = new Error('OPENAI_API_KEY is not set');
-    (err as Error & { status?: number }).status = 503;
-    throw err;
-  }
-}

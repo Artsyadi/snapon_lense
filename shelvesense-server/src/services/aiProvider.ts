@@ -1,5 +1,5 @@
-import OpenAI from 'openai';
-import { config, assertOpenAiConfigured } from '../config.js';
+import Anthropic from '@anthropic-ai/sdk';
+import { config } from '../config.js';
 import { mockVisionJsonFromImageAndPrompt } from './labelOcrHeuristic.js';
 
 export type ChatContentPart =
@@ -7,7 +7,7 @@ export type ChatContentPart =
   | { type: 'image_url'; image_url: { url: string; detail?: 'low' | 'high' | 'auto' } };
 
 /**
- * Pluggable multimodal AI — swap OpenAI for local/Anthropic/etc. without touching routes.
+ * Pluggable multimodal AI interface used by routes and services.
  */
 export interface AiProvider {
   completeJsonText(params: {
@@ -25,32 +25,76 @@ export interface AiProvider {
   }): Promise<string>;
 }
 
-function openaiClient(): OpenAI {
-  assertOpenAiConfigured();
-  return new OpenAI({ apiKey: config.openai.apiKey, timeout: config.ai.requestTimeoutMs });
+function stripCodeFences(text: string): string {
+  return text.replace(/```json/gi, '').replace(/```/g, '').trim();
 }
 
-export class OpenAiAiProvider implements AiProvider {
+function extractTextBlocks(content: Array<{ type: string; text?: string }>): string {
+  return stripCodeFences(
+    content
+      .filter((block) => block.type === 'text' && typeof block.text === 'string')
+      .map((block) => block.text as string)
+      .join('\n'),
+  );
+}
+
+function toAnthropicContent(parts: ChatContentPart[]): Array<Record<string, unknown>> {
+  return parts.map((part) => {
+    if (part.type === 'text') {
+      return { type: 'text', text: part.text };
+    }
+
+    const match = part.image_url.url.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.*)$/);
+    if (!match) {
+      return { type: 'text', text: '[unsupported image payload]' };
+    }
+
+    return {
+      type: 'image',
+      source: {
+        type: 'base64',
+        media_type: match[1],
+        data: match[2],
+      },
+    };
+  });
+}
+
+let anthropicClient: Anthropic | null = null;
+
+function getAnthropicClient(): Anthropic {
+  if (anthropicClient) {
+    return anthropicClient;
+  }
+  if (!config.anthropic.apiKey) {
+    throw new Error('ANTHROPIC_API_KEY is not set. Use AI_ENGINE=mock for offline mode.');
+  }
+  anthropicClient = new Anthropic({ apiKey: config.anthropic.apiKey });
+  return anthropicClient;
+}
+
+export class ClaudeAiProvider implements AiProvider {
   async completeJsonText(params: {
     model: string;
     system: string;
     user: string;
     timeoutMs: number;
   }): Promise<string> {
-    const openai = openaiClient();
-    const res = await openai.chat.completions.create(
+    const client = getAnthropicClient();
+    const res = await client.messages.create(
       {
         model: params.model,
-        response_format: { type: 'json_object' },
-        messages: [
-          { role: 'system', content: params.system },
-          { role: 'user', content: params.user },
-        ],
+        max_tokens: 1024,
+        system: params.system,
+        messages: [{ role: 'user', content: params.user }],
       },
       { timeout: params.timeoutMs },
     );
-    const text = res.choices[0]?.message?.content;
-    if (!text) throw new Error('Empty completion');
+
+    const text = extractTextBlocks(res.content as Array<{ type: string; text?: string }>);
+    if (!text) {
+      throw new Error('Empty completion');
+    }
     return text;
   }
 
@@ -60,28 +104,27 @@ export class OpenAiAiProvider implements AiProvider {
     userParts: ChatContentPart[];
     timeoutMs: number;
   }): Promise<string> {
-    const openai = openaiClient();
-    const res = await openai.chat.completions.create(
+    const client = getAnthropicClient();
+    const content = toAnthropicContent(params.userParts);
+    const res = await client.messages.create(
       {
         model: params.model,
-        response_format: { type: 'json_object' },
-        messages: [
-          { role: 'system', content: params.system },
-          {
-            role: 'user',
-            content: params.userParts as unknown as OpenAI.Chat.Completions.ChatCompletionContentPart[],
-          },
-        ],
+        max_tokens: 1024,
+        system: params.system,
+        messages: [{ role: 'user', content }],
       },
       { timeout: params.timeoutMs },
     );
-    const text = res.choices[0]?.message?.content;
-    if (!text) throw new Error('Empty completion');
+
+    const text = extractTextBlocks(res.content as Array<{ type: string; text?: string }>);
+    if (!text) {
+      throw new Error('Empty completion');
+    }
     return text;
   }
 }
 
-/** Deterministic lab-ish parsing without any cloud call — good for CI / beginners. */
+/** Deterministic parsing for local tests and offline mode. */
 function heuristicProfileWire(raw: string): Record<string, unknown> {
   const t = raw.toLowerCase();
   const allergies: string[] = [];
@@ -93,22 +136,36 @@ function heuristicProfileWire(raw: string): Record<string, unknown> {
   if (/\bwheat\b|\bgluten\b/.test(t)) allergies.push('gluten');
 
   const cholesterol =
-    /\bldl\b.*\b1[4-9][0-9]\b|\bldl\b.*\b2[0-9][0-9]\b|\bhigh cholesterol\b|\bhyperlipidemia\b/.test(t) ||
+    /\bldl\b.*\b1[3-9][0-9]\b|\bldl\b.*\b2[0-9][0-9]\b|\bhigh cholesterol\b|\bhyperlipidemia\b/.test(t) ||
     /\bcholesterol\b.*\bhigh\b/.test(t)
       ? 'high'
       : /\bcholesterol\b/.test(t)
         ? 'borderline'
         : 'unknown';
 
-  const blood_sugar =
-    /\ba1c\b.*\b6\.[5-9]\b|\ba1c\b.*\b[7-9]\./.test(t) || /\bhba1c\b.*\b6\.[5-9]/.test(t) || /\bdiabetes\b|\bpre-?diabetes\b/.test(t)
-      ? 'at-risk'
-      : /\bsugar\b|\bglucose\b/.test(t)
-        ? 'monitor'
-        : 'unknown';
+  const hba1cMatch = t.match(/\bhba1c\b[^0-9]*([0-9]+(?:\.[0-9]+)?)/) ?? t.match(/\ba1c\b[^0-9]*([0-9]+(?:\.[0-9]+)?)/);
+  let blood_sugar = 'unknown';
+  if (hba1cMatch) {
+    const hba1c = Number(hba1cMatch[1]);
+    if (Number.isFinite(hba1c)) {
+      if (hba1c >= 6.5) {
+        blood_sugar = 'high';
+      } else if (hba1c >= 5.7) {
+        blood_sugar = 'borderline';
+      } else {
+        blood_sugar = 'normal';
+      }
+    }
+  } else if (/\bdiabetes\b/.test(t)) {
+    blood_sugar = 'high';
+  } else if (/\bpre-?diabetes\b/.test(t)) {
+    blood_sugar = 'borderline';
+  } else if (/\bsugar\b|\bglucose\b/.test(t)) {
+    blood_sugar = 'monitor';
+  }
 
   const sodium_sensitivity = /\blow sodium\b|\bhypertension\b|\bhigh blood pressure\b|\bbp\b.*\bhigh\b/.test(t) ? 'limit' : 'unknown';
-  const sugar_sensitivity = blood_sugar === 'at-risk' || /\bsugar\b.*\bwatch\b/.test(t) ? 'elevated' : 'unknown';
+  const sugar_sensitivity = blood_sugar === 'high' || blood_sugar === 'borderline' || /\bsugar\b.*\bwatch\b/.test(t) ? 'elevated' : 'unknown';
 
   const dietary_constraints: string[] = [];
   if (allergies.length) dietary_constraints.push('avoid listed allergens');
@@ -118,11 +175,11 @@ function heuristicProfileWire(raw: string): Record<string, unknown> {
     cholesterol,
     blood_sugar,
     allergies,
-    deficiencies: /\bvitamin d\b|\biron\b|\bb12\b|\bfolate\b/.test(t) ? ['per lab — confirm with clinician'] : [],
+    deficiencies: /\bvitamin d\b|\biron\b|\bb12\b|\bfolate\b/.test(t) ? ['per lab - confirm with clinician'] : [],
     sodium_sensitivity,
     sugar_sensitivity,
     dietary_constraints,
-    notes: 'Heuristic parse (AI_ENGINE=mock). Replace with cloud AI for production accuracy.',
+    notes: 'Heuristic parse (AI_ENGINE=mock). Replace with Claude API for production accuracy.',
   };
 }
 
@@ -137,7 +194,7 @@ const MOCK_MEALS = {
     {
       title: 'Beans + greens bowl',
       ingredients: ['canned beans', 'frozen spinach', 'olive oil', 'lemon', 'brown rice'],
-      rationale: 'High fiber, low cost — demo meal plan mode.',
+      rationale: 'High fiber, low cost - demo meal plan mode.',
       estimated_cost_band: 'low' as const,
     },
     {
@@ -185,10 +242,10 @@ export class MockAiProvider implements AiProvider {
 }
 
 export function createAiProvider(): AiProvider {
-  const mode = config.aiEngine;
-  if (mode === 'mock') return new MockAiProvider();
-  if (mode === 'openai') return new OpenAiAiProvider();
-  return config.openai.apiKey ? new OpenAiAiProvider() : new MockAiProvider();
+  if (config.aiEngine === 'mock' || !config.anthropic.apiKey) {
+    return new MockAiProvider();
+  }
+  return new ClaudeAiProvider();
 }
 
 /** Single shared instance for the HTTP layer (stateless providers). */

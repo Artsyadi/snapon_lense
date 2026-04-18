@@ -48,7 +48,7 @@ export class ShelfSenseAgent extends BaseScriptComponent {
 
   @input remoteMedia: RemoteMediaModule;
 
-  /** Example: https://your-gateway.example.com/api (no trailing slash). */
+  /** Example: https://your-project.up.railway.app/api (no trailing slash). */
   @input apiBaseUrl: string;
 
   /** Spectacles Interaction Kit / gaze object: pinch while focused. */
@@ -142,7 +142,7 @@ export class ShelfSenseAgent extends BaseScriptComponent {
       return false;
     }
     if (!this.apiBaseUrl || this.apiBaseUrl.length < 12) {
-      shelfSenseLog('init', 'Set apiBaseUrl to your HTTPS gateway + /api (e.g. https://abc.ngrok.app/api).');
+      shelfSenseLog('init', 'Set apiBaseUrl to your deployed HTTPS API + /api (e.g. https://your-project.up.railway.app/api).');
       return false;
     }
     return true;

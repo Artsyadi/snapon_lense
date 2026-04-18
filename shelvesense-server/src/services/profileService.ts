@@ -12,7 +12,7 @@ export async function parseLabReport(ai: AiProvider, rawText: string): Promise<H
   const jsonText = await withExponentialBackoff(
     () =>
       ai.completeJsonText({
-        model: config.openai.textModel,
+        model: config.anthropic.model,
         system: SYSTEM,
         user,
         timeoutMs: config.ai.requestTimeoutMs,

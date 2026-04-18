@@ -6,6 +6,7 @@ export interface HttpJsonOptions {
   body?: unknown;
   sessionId?: string | null;
   maxRetries?: number;
+  timeoutMs?: number;
 }
 
 export interface HttpJsonError extends Error {
@@ -17,7 +18,7 @@ export type Delayer = (ms: number) => Promise<void>;
 
 /**
  * HTTP JSON helper for Spectacles using InternetModule.fetch.
- * Point `apiBaseUrl` at your Remote Service Gateway / tunnel (e.g. ngrok) + `/api`.
+ * Point `apiBaseUrl` at your deployed HTTPS API origin + `/api`.
  */
 export async function fetchJson<T>(
   internet: InternetModule,
@@ -26,6 +27,7 @@ export async function fetchJson<T>(
   delay: Delayer,
 ): Promise<{ json: T; sessionHeader?: string }> {
   const maxRetries = opts.maxRetries ?? 3;
+  const timeoutMs = opts.timeoutMs ?? 15_000;
   const url = `${apiBaseUrl.replace(/\/$/, '')}${opts.path}`;
   const method = opts.method ?? 'POST';
 
@@ -47,8 +49,27 @@ export async function fetchJson<T>(
         init.body = JSON.stringify(opts.body);
       }
 
-      const req = new Request(url, init as any);
-      const res = await internet.fetch(req);
+      const controller = new AbortController();
+      let timeoutId: ReturnType<typeof setTimeout> | null = null;
+      const timeoutPromise = new Promise<never>((_resolve, reject) => {
+        timeoutId = setTimeout(() => {
+          controller.abort();
+          const timeoutErr = new Error(`NETWORK_TIMEOUT: request exceeded ${timeoutMs} ms`) as HttpJsonError;
+          timeoutErr.status = 408;
+          timeoutErr.bodySnippet = '';
+          reject(timeoutErr);
+        }, timeoutMs);
+      });
+
+      let res: Response;
+      try {
+        const req = new Request(url, { ...(init as Record<string, unknown>), signal: controller.signal } as any);
+        res = (await Promise.race([internet.fetch(req), timeoutPromise])) as Response;
+      } finally {
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+        }
+      }
 
       const sessionHeader = res.headers.get('x-shelvesense-session') ?? undefined;
       const text = await res.text();
@@ -63,7 +84,7 @@ export async function fetchJson<T>(
     } catch (err) {
       lastErr = err;
       const status = (err as HttpJsonError).status;
-      const retryable = status === undefined || status >= 500 || status === 429;
+      const retryable = status === undefined || status >= 500 || status === 429 || status === 408;
       if (!retryable || attempt === maxRetries) {
         break;
       }

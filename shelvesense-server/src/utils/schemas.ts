@@ -83,13 +83,13 @@ export const labelAnalysisResponseSchema = z.object({
 });
 
 export const profileParseBodySchema = z.object({
-  rawText: z.string().min(1, 'rawText is required'),
+  rawText: z.string().min(0),
 });
 
 export const analyzeLabelJsonBodySchema = z.object({
   imageBase64: z.string().min(1),
   imageMimeType: z.string().default('image/jpeg'),
-  healthProfile: healthProfileSchema,
+  healthProfile: healthProfileSchema.optional(),
   productName: z.string().optional(),
   cartContext: z
     .object({

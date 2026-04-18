@@ -9,7 +9,7 @@
 <body>
   <main>
     <h1>Try ShelfSense speech (same API as Spectacles)</h1>
-    <p class="muted">This page calls <code>POST /api/speech</code>, shows the line as text, and plays the returned MP3. With <code>TTS_ENGINE=auto</code> and no OpenAI key, the server uses <strong>free Edge TTS</strong> instead.</p>
+    <p class="muted">This page calls <code>POST /api/speech</code>, shows the line as text, and plays the returned MP3. With <code>TTS_ENGINE=edge</code> (default), the server uses <strong>free Edge TTS</strong>. With <code>TTS_ENGINE=off</code>, it returns a browser fallback hint.</p>
 
     <label for="speechText">What should ShelfSense say?</label>
     <textarea id="speechText" rows="3" maxlength="500">Caution. Watch sodium and added sugar.</textarea>

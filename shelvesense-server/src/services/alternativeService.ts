@@ -28,7 +28,7 @@ export async function suggestAlternatives(params: {
   const jsonText = await withExponentialBackoff(
     () =>
       params.ai.completeJsonText({
-        model: config.openai.textModel,
+        model: config.anthropic.model,
         system: SYSTEM,
         user,
         timeoutMs: config.ai.requestTimeoutMs,

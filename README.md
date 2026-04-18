@@ -27,7 +27,7 @@ Optimization defaults to **people with food allergies** and **pre-diabetes / glu
 ### Repo layout
 
 - **`shelvesense-lens/`** — Spectacles client; entry script: **`src/ShelfSenseAgent.ts`**.  
-- **`shelvesense-server/`** — REST API, OCR, mock/heuristic + optional OpenAI.  
+- **`shelvesense-server/`** — REST API, OCR, mock/heuristic + optional Anthropic Claude.  
 - **`samples/`** — small synthetic SSAMPLE JPEGs (secondary regression only).  
 - **`samples/real-products/`** — **mandatory** real packaging / shelf / motion-style frames (`npm run samples:real:fetch`).
 

@@ -16,16 +16,20 @@ export function renderVerdictTexts(
   alternatives: Text | null,
   cartSummary: Text | null,
 ): void {
+  const displayVerdict: Verdict =
+    analysis.verdict === 'Safe' || analysis.verdict === 'Caution' || analysis.verdict === 'Avoid' ? analysis.verdict : 'Caution';
+
   if (headline) {
-    headline.text = `${analysis.verdict}`;
+    headline.text = `${displayVerdict}`;
     headline.textFill.mode = TextFillMode.Solid;
-    headline.textFill.color = verdictColor(analysis.verdict as Verdict);
+    headline.textFill.color = verdictColor(displayVerdict);
   }
   if (details) {
     details.text = analysis.reason;
   }
   if (alternatives) {
-    const lines = analysis.better_alternatives.slice(0, 3).map((a) => `${a.name} — ${a.why_better}`);
+    const normalizedAlternatives = Array.isArray(analysis.better_alternatives) ? analysis.better_alternatives : [];
+    const lines = normalizedAlternatives.slice(0, 3).map((a) => `${a.name} — ${a.why_better}`);
     const flags = joinBullets(analysis.ingredients_flags, 3);
     const risks = joinBullets(analysis.health_risks, 3);
     const extra = [flags && `Flags:\n${flags}`, risks && `Risks:\n${risks}`].filter(Boolean).join('\n\n');

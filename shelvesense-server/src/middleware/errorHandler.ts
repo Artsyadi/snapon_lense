@@ -2,19 +2,11 @@ import type { NextFunction, Request, Response } from 'express';
 import multer from 'multer';
 import { ZodError } from 'zod';
 import { logger } from '../utils/logger.js';
-import { UnreadableImageError } from '../services/visionService.js';
 
 export function errorHandler(err: unknown, _req: Request, res: Response, _next: NextFunction): void {
   if (err instanceof multer.MulterError) {
     res.status(400).json({
       error: { code: 'UPLOAD_ERROR', message: err.message, details: { field: err.field } },
-    });
-    return;
-  }
-
-  if (err instanceof UnreadableImageError) {
-    res.status(422).json({
-      error: { code: err.code, message: err.message },
     });
     return;
   }
