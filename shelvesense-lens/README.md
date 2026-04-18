@@ -1,6 +1,22 @@
 # ShelfSense lens (Lens Studio + Spectacles)
 
-TypeScript client for **ShelfSense**. This folder is **not** bundled by Node — copy `shelvesense-lens/src` into your Lens Studio project (for example `Assets/ShelfSense/Scripts/`) or symlink it, then add the script component to a Scene Object.
+> **If the lens “shuts down” on Spectacles, start here: [`SETUP.md`](./SETUP.md).**
+> The default project in this repo has an **empty scene**, no **SIK** installed, and no **ScriptComponent** attached — the lens cannot run on device until you follow the 10 steps in `SETUP.md`.
+
+
+TypeScript client for **ShelfSense** — XR guidance at the shelf so people with **allergies**, **glucose or sodium risk**, or **limited label literacy** get an immediate **Safe / Caution / Avoid** signal (see repo root **`README.md`**).
+
+**Primary script (wire this in Lens Studio):** `src/ShelfSenseAgent.ts` — pinch → `CameraModule` still → `POST /api/analyze-label` → `POST /api/cart/update` → `POST /api/speech` → minimal UI + audio.
+
+This folder is **not** bundled by Node — copy `shelvesense-lens/src` into your Lens Studio project (for example `Assets/ShelfSense/Scripts/`) or symlink it, then add the script component to a Scene Object.
+
+## Lens closes immediately on Spectacles (“app shutting down”)
+
+1. **Inspector wiring** — On the Scene Object with `ShelfSenseAgent`, assign **every** required `@input`: `cameraModule`, `remoteService`, `remoteMedia`, `apiBaseUrl`, `pinchInteractor`, all four `Text` fields, `loadingIndicator`, `statusRing`, `resultPanel`, `audioPlayer`. Missing **any** of these dereferences native objects on the first frame and the OS will kill the lens.
+2. **Device capabilities** — In Lens Studio **Project Settings → Capabilities** (or the Spectacles device section), enable **Internet** and **Camera** for this lens. Without them, camera or fetch APIs can fail at runtime.
+3. **Target device** — Use a **Spectacles** preview / deployed build. `CameraModule.requestImage` is wearable-only; running a Spectacles-only script on the wrong target can crash.
+4. **Logs** — After the latest script update, missing inputs print `[ShelfSense:init] …` in **Logger** before exit; read those lines first.
+5. **`apiBaseUrl`** — Must be a real **HTTPS** URL the glasses can reach (allow-listed Remote Service domain). Wrong or empty URL still boots if inputs are wired, but profile fetch will fall back to the demo profile.
 
 ## Hardware-ready checklist
 

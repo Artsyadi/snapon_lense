@@ -157,7 +157,11 @@ async function postOcr(session: string, filePath: string, fileName: string): Pro
   return j.rawText;
 }
 
-async function postAnalyze(session: string, imageBase64: string, profile: Case['profile']): Promise<{ verdict: string }> {
+async function postAnalyze(
+  session: string,
+  imageBase64: string,
+  profile: Case['profile'],
+): Promise<{ verdict: string; reason: string }> {
   const res = await fetch(`${base}/api/analyze-label`, {
     method: 'POST',
     headers: {
@@ -172,17 +176,18 @@ async function postAnalyze(session: string, imageBase64: string, profile: Case['
   });
   const text = await res.text();
   assert(res.ok, `analyze-label failed ${res.status}: ${text.slice(0, 400)}`);
-  return JSON.parse(text) as { verdict: string };
+  const j = JSON.parse(text) as { verdict: string; reason?: string };
+  return { verdict: j.verdict, reason: typeof j.reason === 'string' ? j.reason : '' };
 }
 
-async function postSpeech(session: string): Promise<void> {
+async function postSpeech(session: string, line: string): Promise<{ mode: 'mp3' | 'hint'; audioChars: number }> {
   const res = await fetch(`${base}/api/speech`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'x-shelvesense-session': session,
     },
-    body: JSON.stringify({ text: 'Caution. Retail OCR is noisy — rescan square to the panel.' }),
+    body: JSON.stringify({ text: line.slice(0, 240) }),
   });
   assert(res.ok, `speech ${res.status}`);
   const j = (await res.json()) as { spokenLine?: string; audioBase64?: string; fallback?: string };
@@ -191,6 +196,16 @@ async function postSpeech(session: string): Promise<void> {
     (j.audioBase64 && j.audioBase64.length > 64) || j.fallback === 'browser_tts_hint',
     'speech expected audio or browser_tts_hint',
   );
+  const audioChars = j.audioBase64?.length ?? 0;
+  if (j.audioBase64 && j.audioBase64.length > 64) {
+    return { mode: 'mp3', audioChars };
+  }
+  return { mode: 'hint', audioChars };
+}
+
+function logLine(msg: string): void {
+  // eslint-disable-next-line no-console
+  console.log(`[verify:real] ${msg}`);
 }
 
 async function main(): Promise<void> {
@@ -202,6 +217,7 @@ async function main(): Promise<void> {
   }
 
   const session = `real-${Date.now()}`;
+  logLine(`session=${session} base=${base}`);
 
   for (const c of cases) {
     const fp = path.join(realDir, c.file);
@@ -209,6 +225,7 @@ async function main(): Promise<void> {
 
     const raw = await postOcr(session, fp, c.file);
     assert(raw.length >= c.minOcrChars, `${c.file}: OCR too short (${raw.length} < ${c.minOcrChars}). Snippet: ${raw.slice(0, 120)}`);
+    let cueNote = `ocr_chars=${raw.length}`;
     if (c.ocrHintAnyOf?.length) {
       const u = raw.toUpperCase();
       const hitHint = c.ocrHintAnyOf.some((s) => u.includes(s.toUpperCase()));
@@ -220,17 +237,25 @@ async function main(): Promise<void> {
           (c.minLatinTokens !== undefined ? ` (and < ${c.minLatinTokens} Latin tokens)` : '') +
           `. Got: ${raw.slice(0, 200)}…`,
       );
+      cueNote += hitHint ? ' cue=keyword' : ' cue=latin_tokens';
     }
+    logLine(`${c.file} | ${cueNote} | preview="${raw.replace(/\s+/g, ' ').trim().slice(0, 96)}…"`);
 
     const b64 = fs.readFileSync(fp).toString('base64');
-    const { verdict } = await postAnalyze(session, b64, c.profile);
+    const { verdict, reason } = await postAnalyze(session, b64, c.profile);
     assert(
       c.verdictOneOf.includes(verdict),
       `${c.file}: verdict ${verdict} not in allowed ${c.verdictOneOf.join('|')}`,
     );
+    logLine(`${c.file} | analyze-label verdict=${verdict} reason="${reason.replace(/\s+/g, ' ').trim().slice(0, 140)}"`);
+
+    const speechLine = `${verdict}. ${reason}`.trim().slice(0, 220);
+    const speech = await postSpeech(session, speechLine || `${verdict}. ShelfSense offline scan.`);
+    logLine(
+      `${c.file} | speech ${speech.mode === 'mp3' ? `MP3 base64_len=${speech.audioChars}` : `fallback=browser_tts_hint base64_len=${speech.audioChars}`}`,
+    );
   }
 
-  await postSpeech(session);
   // eslint-disable-next-line no-console
   console.log('VERIFY REAL OK', { base, cases: cases.length });
 }

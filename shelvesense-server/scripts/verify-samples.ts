@@ -112,6 +112,8 @@ async function main(): Promise<void> {
   });
   assert(healthy.res.ok, `healthy analyze ${healthy.res.status}`);
   assert((healthy.json as { verdict?: string }).verdict === 'Safe', 'expected Safe on label-healthy');
+  // eslint-disable-next-line no-console
+  console.log('[verify:samples] label-healthy.jpg → verdict=Safe (synthetic SSAMPLE sanity)');
 
   const saltCaution = await postJson(session, '/api/analyze-label', {
     imageBase64: b64('label-high-sodium-sugar.jpg'),
@@ -123,6 +125,8 @@ async function main(): Promise<void> {
     (saltCaution.json as { verdict?: string }).verdict === 'Caution',
     'expected Caution on high-sodium label with mild profile',
   );
+  // eslint-disable-next-line no-console
+  console.log('[verify:samples] label-high-sodium-sugar.jpg + mild sodium profile → verdict=Caution');
 
   const saltAvoid = await postJson(session, '/api/analyze-label', {
     imageBase64: b64('label-high-sodium-sugar.jpg'),
@@ -134,6 +138,8 @@ async function main(): Promise<void> {
     (saltAvoid.json as { verdict?: string }).verdict === 'Avoid',
     'expected Avoid on high-sodium label with strict combined profile',
   );
+  // eslint-disable-next-line no-console
+  console.log('[verify:samples] label-high-sodium-sugar.jpg + strict profile → verdict=Avoid');
 
   const allergen = await postJson(session, '/api/analyze-label', {
     imageBase64: b64('label-allergen-peanut.jpg'),
@@ -142,6 +148,8 @@ async function main(): Promise<void> {
   });
   assert(allergen.res.ok, `allergen analyze ${allergen.res.status}`);
   assert((allergen.json as { verdict?: string }).verdict === 'Avoid', 'expected Avoid on allergen fixture');
+  // eslint-disable-next-line no-console
+  console.log('[verify:samples] label-allergen-peanut.jpg + peanut allergy → verdict=Avoid');
 
   const speech = await postJson(session, '/api/speech', {
     text: 'Safe. Simple ingredients with modest sugar and sodium for your profile.',
@@ -152,6 +160,10 @@ async function main(): Promise<void> {
   const hasAudio = Boolean(sp.audioBase64 && sp.audioBase64.length > 64);
   const hasFallback = sp.fallback === 'browser_tts_hint';
   assert(hasAudio || hasFallback, 'speech expected audio bytes or browser_tts_hint fallback');
+  // eslint-disable-next-line no-console
+  console.log(
+    `[verify:samples] /api/speech → ${hasAudio ? `audio base64 length=${(sp.audioBase64 ?? '').length}` : 'fallback=browser_tts_hint'}`,
+  );
 
   // eslint-disable-next-line no-console
   console.log('VERIFY SAMPLES OK', { base });

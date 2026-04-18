@@ -1,6 +1,8 @@
 # ShelfSense backend
 
-Node.js + Express + TypeScript intelligence layer for **ShelfSense** (Snap Spectacles grocery health assistant).
+Node.js + Express + TypeScript intelligence layer for **ShelfSense** — an XR system that reduces harmful food decisions at the point of choice (see the repo root **`README.md`** for problem framing and architecture).
+
+Snap Spectacles grocery / label assistant: OCR, profile logic, optional cloud vision, TTS, and cart intelligence live **only** in this service; the lens is a thin client.
 
 ## Repo layout
 
