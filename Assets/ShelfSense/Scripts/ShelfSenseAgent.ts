@@ -91,7 +91,7 @@ export class ShelfSenseAgent extends BaseScriptComponent {
       this.inputsReady = true;
 
       if (!isNull(this.audioPlayer)) {
-        this.audioPlayer.playbackMode = Audio.PlaybackMode.Immediate;
+        this.audioPlayer.playbackMode = Audio.PlaybackMode.LowLatency;
       }
 
       if (!isNull(this.scanAnchor) && !isNull(this.resultPanel)) {
@@ -343,7 +343,7 @@ export class ShelfSenseAgent extends BaseScriptComponent {
         return;
       }
       const bytes = Base64.decode(payload.audioBase64);
-      const blob = new Blob([bytes], { type: payload.mimeType });
+      const blob = new Blob(bytes, { type: payload.mimeType });
       const resource = this.remoteService.makeResourceFromBlob(blob);
       this.remoteMedia.loadResourceAsAudioTrackAsset(
         resource,

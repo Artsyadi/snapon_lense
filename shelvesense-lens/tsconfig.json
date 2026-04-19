@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "commonjs",
+    "lib": ["ES2022", "ESNext.Decorators"],
+    "types": [],
+    "experimentalDecorators": false,
+    "strict": false,
+    "strictPropertyInitialization": false,
+    "skipLibCheck": true,
+    "noEmit": true
+  },
+  "files": ["../Support/StudioLib.d.ts"],
+  "include": ["src/**/*"]
+}
