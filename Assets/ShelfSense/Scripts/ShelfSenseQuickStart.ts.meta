@@ -22,11 +22,11 @@
   VersionMajor: 0
   VersionMinor: 0
   VersionPatch: 0
-  ComponentUid: 00000000-0000-0000-0000-000000000000
+  ComponentUid: 1a4ebf9f-e9a6-4e28-b499-2dee3847ddf7
   ExportUid: 00000000-0000-0000-0000-000000000000
   PackagePolicy: CanBeUnpacked
   ScriptInputsHidden:
-    {}
+    apiBaseUrl: false
   ScriptTypesHidden:
     {}
   ReadMe: !<reference> 00000000-0000-0000-0000-000000000000
@@ -36,10 +36,9 @@
   Attachments:
     []
   DefaultScriptInputs:
-    -
-      {}
+    - apiBaseUrl: "https://snaponlense-production.up.railway.app/api"
   ScriptTypes:
     -
       {}
   InputLines:
-    []
+    - // @input string apiBaseUrl

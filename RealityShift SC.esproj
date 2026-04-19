@@ -15,13 +15,15 @@ metaInfo:
     []
   lensName: Untitled
   lensDescriptors:
-    []
+    - EXPERIMENTAL_API
   lensApplicability:
     - Front
     - Back
   lensClientCompatibilities:
     - Mobile
     - Web
+    - Spectacles
+    - CameraKit
   platformBundlesEnabled: false
   iconHash: ""
   videoPreviewHash: ""

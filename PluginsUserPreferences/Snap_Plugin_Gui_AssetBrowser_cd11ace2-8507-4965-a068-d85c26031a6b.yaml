@@ -1,5 +1,9 @@
 CollapsedEntities:
   type: stringset
   value:
-    size: 0
+    size: 3
+    values:
+      - Internet Module.internetModule
+      - Remote Service Module.remoteServiceModule
+      - ShelfSense/Scripts/ShelfSenseAgent.ts
   options: 4

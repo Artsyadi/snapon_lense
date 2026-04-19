@@ -3,6 +3,7 @@
   objects:
     - !<own> 00000000-0000-0065-0000-000000000064
     - !<own> 0005641c-028d-459a-0000-000000014b4d
+    - !<own> 810c3b4c-2bc5-4ed0-8b41-5348b3438a32
   layers: !<Layers/267ee9a7-aff2-4f9d-9a49-f71214747d03>
     userLayers:
       []
@@ -169,3 +170,34 @@
   DecayType: None
   DecayLimit: false
   DecayRange: 40.000000
+- !<ScriptComponent/57855801-6426-4af8-b3e1-5aa9ab4f6ff2>
+  PrefabRemaps:
+    []
+  Name: ShelfSenseQuickStart
+  Enabled: true
+  ScriptAsset: !<reference> e542dfed-9de3-4775-83d0-fcf7e70851d1
+  ScriptInputsDefault:
+    apiBaseUrl: true
+  ScriptTypesDefault:
+    {}
+  ScriptInputs:
+    "":
+      apiBaseUrl: "https://snaponlense-production.up.railway.app/api"
+  ScriptTypes:
+    "":
+      {}
+- !<SceneObject/810c3b4c-2bc5-4ed0-8b41-5348b3438a32>
+  PrefabRemaps:
+    []
+  Name: ShelfSenseQuickStart
+  Enabled: true
+  Layers: 1
+  LocalTransform: !<TransformEntity>
+    Position: {x: 0.000000, y: 0.000000, z: 0.000000}
+    Rotation: {x: 0.000000, y: 0.000000, z: 0.000000}
+    Scale: {x: 1.000000, y: 1.000000, z: 1.000000}
+    HasSegmentScaleCompensation: false
+  Children:
+    []
+  Components:
+    - !<own> 57855801-6426-4af8-b3e1-5aa9ab4f6ff2
