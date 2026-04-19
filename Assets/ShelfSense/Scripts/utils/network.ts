@@ -6,7 +6,6 @@ export interface HttpJsonOptions {
   body?: unknown;
   sessionId?: string | null;
   maxRetries?: number;
-  timeoutMs?: number;
 }
 
 export interface HttpJsonError extends Error {
@@ -27,7 +26,6 @@ export async function fetchJson<T>(
   delay: Delayer,
 ): Promise<{ json: T; sessionHeader?: string }> {
   const maxRetries = opts.maxRetries ?? 3;
-  const timeoutMs = opts.timeoutMs ?? 15_000;
   const url = `${apiBaseUrl.replace(/\/$/, '')}${opts.path}`;
   const method = opts.method ?? 'POST';
 
@@ -49,27 +47,8 @@ export async function fetchJson<T>(
         init.body = JSON.stringify(opts.body);
       }
 
-      const controller = new AbortController();
-      let timeoutId: ReturnType<typeof setTimeout> | null = null;
-      const timeoutPromise = new Promise<never>((_resolve, reject) => {
-        timeoutId = setTimeout(() => {
-          controller.abort();
-          const timeoutErr = new Error(`NETWORK_TIMEOUT: request exceeded ${timeoutMs} ms`) as HttpJsonError;
-          timeoutErr.status = 408;
-          timeoutErr.bodySnippet = '';
-          reject(timeoutErr);
-        }, timeoutMs);
-      });
-
-      let res: Response;
-      try {
-        const req = new Request(url, { ...(init as Record<string, unknown>), signal: controller.signal } as any);
-        res = (await Promise.race([internet.fetch(req), timeoutPromise])) as Response;
-      } finally {
-        if (timeoutId) {
-          clearTimeout(timeoutId);
-        }
-      }
+      const req = new Request(url, init as any);
+      const res = await internet.fetch(req);
 
       const sessionHeader = res.headers.get('x-shelvesense-session') ?? undefined;
       const text = await res.text();
